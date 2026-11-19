@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokédex Interactiva</title>
+    <!-- Carga de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fuente Inter desde Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Animación suave para la aparición de la tarjeta */
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        .animate-card {
+            animation: fadeInScale 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col items-center justify-start py-8 px-4 sm:py-12">
+
+    <!-- Contenedor Principal -->
+    <main class="w-full max-w-md flex flex-col items-center">
+        
+        <!-- Encabezado con estilo Pokédex -->
+        <header class="text-center mb-8 w-full">
+            <div class="inline-flex items-center justify-center gap-3 mb-2">
+                <!-- Icono Pokébola SVG -->
+                <svg class="w-10 h-10 text-red-600 drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" fill="white" stroke="#dc2626"/>
+                    <path d="M2 12h20" stroke="#1e293b" stroke-width="2.5"/>
+                    <path d="M12 2a10 10 0 0 1 10 10H2A10 10 0 0 1 12 2z" fill="#dc2626" stroke="none"/>
+                    <circle cx="12" cy="12" r="3.5" fill="white" stroke="#1e293b" stroke-width="2.5"/>
+                </svg>
+                <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+                    Poké<span class="text-red-600">dex</span>
+                </h1>
+            </div>
+            <p class="text-slate-500 text-sm sm:text-base">
+                Busca cualquier Pokémon por su nombre o número oficial
+            </p>
+        </header>
+
+        <!-- Barra de Búsqueda -->
+        <section class="w-full bg-white p-2 rounded-2xl shadow-md border border-slate-200/80 mb-6 transition-shadow focus-within:shadow-lg focus-within:border-red-400">
+            <form id="search-form" class="flex items-center gap-2">
+                <div class="relative flex-1">
+                    <input 
+                        type="text" 
+                        id="pokemon-input" 
+                        placeholder="Ej. pikachu, charizard, 25..." 
+                        autocomplete="off"
+                        class="w-full pl-4 pr-3 py-3 text-slate-700 bg-transparent rounded-xl focus:outline-none text-base placeholder:text-slate-400"
+                    >
+                </div>
+                <button 
+                    type="submit" 
+                    id="search-btn"
+                    class="bg-red-600 hover:bg-red-700 active:scale-95 text-white font-semibold px-5 py-3 rounded-xl transition-all duration-150 shadow-sm flex items-center gap-2 cursor-pointer"
+                >
+                    <span>Buscar</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </button>
+            </form>
+        </section>
+
+        <!-- Sugerencias rápidas -->
+        <div class="flex flex-wrap items-center justify-center gap-2 mb-6 text-xs text-slate-500">
+            <span>Prueba con:</span>
+            <button type="button" class="quick-search px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition cursor-pointer" data-pokemon="pikachu">Pikachu</button>
+            <button type="button" class="quick-search px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition cursor-pointer" data-pokemon="gengar">Gengar</button>
+            <button type="button" class="quick-search px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition cursor-pointer" data-pokemon="lucario">Lucario</button>
+            <button type="button" class="quick-search px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition cursor-pointer" data-pokemon="150">#150</button>
+        </div>
+
+        <!-- Contenedor Dinámico de Resultados / Estados -->
+        <section id="result-container" class="w-full">
+            
+            <!-- Estado Inicial (Bienvenida) -->
+            <div id="initial-state" class="bg-white/60 border border-dashed border-slate-300 rounded-3xl p-8 text-center text-slate-400">
+                <p class="text-sm">Ingresa un nombre o número arriba para descubrir sus datos.</p>
+            </div>
+
+            <!-- Estado de Carga (Spinner) -->
+            <div id="loading-state" class="hidden bg-white rounded-3xl shadow-md border border-slate-100 p-10 text-center">
+                <div class="inline-block w-10 h-10 border-4 border-slate-200 border-t-red-600 rounded-full animate-spin mb-3"></div>
+                <p class="text-slate-500 font-medium text-sm">Buscando en la base de datos...</p>
+            </div>
+
+            <!-- Estado de Error -->
+            <div id="error-state" class="hidden bg-red-50 border border-red-200 rounded-3xl p-6 text-center animate-card">
+                <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <h3 id="error-title" class="text-red-800 font-bold text-base mb-1">¡Pokémon no encontrado!</h3>
+                <p id="error-message" class="text-red-600 text-sm">Verifica que el nombre o número esté bien escrito e inténtalo de nuevo.</p>
+            </div>
+
+            <!-- Tarjeta del Pokémon -->
+            <article id="pokemon-card" class="hidden bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-card">
+                <!-- Cabecera visual con fondo degradado suave -->
+                <div id="card-header-bg" class="relative bg-gradient-to-b from-slate-100 to-white pt-6 pb-2 px-6 flex flex-col items-center">
+                    <!-- Número de Pokédex -->
+                    <span id="pokemon-id" class="self-end text-sm font-extrabold text-slate-400 tracking-wider">
+                        #000
+                    </span>
+                    
+                    <!-- Imagen Oficial -->
+                    <div class="w-48 h-48 sm:w-52 sm:h-52 flex items-center justify-center my-1 relative">
+                        <div class="absolute inset-4 bg-slate-200/50 rounded-full blur-xl"></div>
+                        <img 
+                            id="pokemon-image" 
+                            src="" 
+                            alt="Imagen del Pokémon" 
+                            class="w-full h-full object-contain relative z-10 drop-shadow-md transition-transform duration-300 hover:scale-105"
+                        >
+                    </div>
+                </div>
+
+                <!-- Cuerpo de información -->
+                <div class="px-6 pb-8 pt-2 text-center">
+                    <!-- Nombre Capitalizado -->
+                    <h2 id="pokemon-name" class="text-2xl sm:text-3xl font-extrabold text-slate-800 capitalize mb-3">
+                        Nombre
+                    </h2>
+
+                    <!-- Contenedor de Tipos -->
+                    <div id="pokemon-types" class="flex flex-wrap items-center justify-center gap-2 mb-6">
+                        <!-- Las etiquetas se inyectan dinámicamente -->
+                    </div>
+
+                    <!-- Cuadrícula de Medidas (Altura y Peso) -->
+                    <div class="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <div class="flex flex-col items-center border-r border-slate-200 pr-2">
+                            <span class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Altura</span>
+                            <span id="pokemon-height" class="text-lg font-bold text-slate-700">0.0 m</span>
+                        </div>
+                        <div class="flex flex-col items-center pl-2">
+                            <span class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Peso</span>
+                            <span id="pokemon-weight" class="text-lg font-bold text-slate-700">0.0 kg</span>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+        </section>
+    </main>
+
+    <script>
+        /**
+         * Configuración de colores y traducciones al español para los tipos de Pokémon
+         */
+        const TYPE_CONFIG = {
+            normal:   { label: 'Normal',    bg: 'bg-stone-400',   text: 'text-white' },
+            fire:     { label: 'Fuego',     bg: 'bg-orange-500',  text: 'text-white' },
+            water:    { label: 'Agua',      bg: 'bg-blue-500',    text: 'text-white' },
+            electric: { label: 'Eléctrico', bg: 'bg-yellow-400',  text: 'text-slate-900' },
+            grass:    { label: 'Planta',    bg: 'bg-emerald-500', text: 'text-white' },
+            ice:      { label: 'Hielo',     bg: 'bg-cyan-400',    text: 'text-slate-900' },
+            fighting: { label: 'Lucha',     bg: 'bg-red-700',     text: 'text-white' },
+            poison:   { label: 'Veneno',    bg: 'bg-purple-600',  text: 'text-white' },
+            ground:   { label: 'Tierra',    bg: 'bg-amber-600',   text: 'text-white' },
+            flying:   { label: 'Volador',   bg: 'bg-indigo-400',  text: 'text-white' },
+            psychic:  { label: 'Psíquico',  bg: 'bg-pink-500',    text: 'text-white' },
+            bug:      { label: 'Bicho',     bg: 'bg-lime-500',    text: 'text-white' },
+            rock:     { label: 'Roca',      bg: 'bg-yellow-700',  text: 'text-white' },
+            ghost:    { label: 'Fantasma',  bg: 'bg-violet-700',  text: 'text-white' },
+            dragon:   { label: 'Dragón',    bg: 'bg-indigo-700',  text: 'text-white' },
+            dark:     { label: 'Siniestro', bg: 'bg-neutral-800', text: 'text-white' },
+            steel:    { label: 'Acero',     bg: 'bg-slate-400',   text: 'text-slate-900' },
+            fairy:    { label: 'Hada',      bg: 'bg-rose-400',    text: 'text-white' }
+        };
+
+        // Referencias a elementos del DOM
+        const searchForm = document.getElementById('search-form');
+        const pokemonInput = document.getElementById('pokemon-input');
+        const initialState = document.getElementById('initial-state');
+        const loadingState = document.getElementById('loading-state');
+        const errorState = document.getElementById('error-state');
+        const errorTitle = document.getElementById('error-title');
+        const errorMessage = document.getElementById('error-message');
+        const pokemonCard = document.getElementById('pokemon-card');
+
+        // Elementos internos de la tarjeta
+        const pokemonIdEl = document.getElementById('pokemon-id');
+        const pokemonImageEl = document.getElementById('pokemon-image');
+        const pokemonNameEl = document.getElementById('pokemon-name');
+        const pokemonTypesEl = document.getElementById('pokemon-types');
+        const pokemonHeightEl = document.getElementById('pokemon-height');
+        const pokemonWeightEl = document.getElementById('pokemon-weight');
+
+        /**
+         * Controla qué vista se muestra en el contenedor de resultados
+         * @param {'initial'|'loading'|'error'|'card'} view 
+         */
+        function setViewState(view) {
+            initialState.classList.add('hidden');
+            loadingState.classList.add('hidden');
+            errorState.classList.add('hidden');
+            pokemonCard.classList.add('hidden');
+
+            if (view === 'initial') initialState.classList.remove('hidden');
+            if (view === 'loading') loadingState.classList.remove('hidden');
+            if (view === 'error') errorState.classList.remove('hidden');
+            if (view === 'card') {
+                // Reiniciar animación CSS
+                pokemonCard.classList.remove('animate-card');
+                void pokemonCard.offsetWidth; 
+                pokemonCard.classList.add('animate-card');
+                pokemonCard.classList.remove('hidden');
+            }
+        }
+
+        /**
+         * Muestra un mensaje de error personalizado en la interfaz
+         */
+        function showError(title, message) {
+            errorTitle.textContent = title;
+            errorMessage.textContent = message;
+            setViewState('error');
+        }
+
+        /**
+         * Consulta la PokeAPI y renderiza los datos del Pokémon
+         * @param {string} query Nombre o ID del Pokémon
+         */
+        async function fetchPokemon(query) {
+            const cleanQuery = query.trim().toLowerCase();
+
+            // Validación de campo vacío
+            if (!cleanQuery) {
+                showError(
+                    'Campo vacío',
+                    'Por favor, escribe el nombre o el número de un Pokémon antes de buscar.'
+                );
+                pokemonInput.focus();
+                return;
+            }
+
+            setViewState('loading');
+
+            try {
+                const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${encodeURIComponent(cleanQuery)}`);
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error('NOT_FOUND');
+                    }
+                    throw new Error('NETWORK_ERROR');
+                }
+
+                const data = await response.json();
+                renderPokemon(data);
+
+            } catch (error) {
+                if (error.message === 'NOT_FOUND') {
+                    showError(
+                        `No encontramos a "${query}"`,
+                        'Asegúrate de escribir correctamente el nombre en inglés (ej. charizard) o su número de Pokédex.'
+                    );
+                } else {
+                    showError(
+                        'Error de conexión',
+                        'Ocurrió un problema al conectar con la Pokédex. Revisa tu conexión e inténtalo de nuevo.'
+                    );
+                }
+            }
+        }
+
+        /**
+         * Rellena la tarjeta HTML con los datos obtenidos de la API
+         */
+        function renderPokemon(data) {
+            // 1. Número de Pokédex formateado a 3 dígitos (#025)
+            pokemonIdEl.textContent = `#${String(data.id).padStart(3, '0')}`;
+
+            // 2. Nombre (se capitaliza vía CSS y se limpian guiones si es forma alternativa)
+            pokemonNameEl.textContent = data.name.replace(/-/g, ' ');
+
+            // 3. Imagen oficial de alta calidad con respaldo a front_default y placeholder
+            const officialArt = data.sprites?.other?.['official-artwork']?.front_default;
+            const defaultSprite = data.sprites?.front_default;
+            const fallbackUrl = `https://placehold.co/300x300/f1f5f9/64748b?text=${encodeURIComponent(data.name)}`;
+            
+            pokemonImageEl.src = officialArt || defaultSprite || fallbackUrl;
+            pokemonImageEl.alt = `Ilustración oficial de ${data.name}`;
+            pokemonImageEl.onerror = function() {
+                this.onerror = null;
+                this.src = fallbackUrl;
+            };
+
+            // 4. Conversión de unidades (decímetros -> metros, hectogramos -> kilogramos)
+            const heightInMeters = (data.height / 10).toFixed(1);
+            const weightInKg = (data.weight / 10).toFixed(1);
+            pokemonHeightEl.textContent = `${heightInMeters} m`;
+            pokemonWeightEl.textContent = `${weightInKg} kg`;
+
+            // 5. Etiquetas de tipos estilizadas
+            pokemonTypesEl.innerHTML = '';
+            data.types.forEach(typeInfo => {
+                const typeKey = typeInfo.type.name;
+                const config = TYPE_CONFIG[typeKey] || { 
+                    label: typeKey, 
+                    bg: 'bg-slate-500', 
+                    text: 'text-white' 
+                };
+
+                const badge = document.createElement('span');
+                badge.className = `${config.bg} ${config.text} text-xs font-bold uppercase tracking-wider px-4 py-1.5 rounded-full shadow-sm`;
+                badge.textContent = config.label;
+                pokemonTypesEl.appendChild(badge);
+            });
+
+            // Mostrar la tarjeta final
+            setViewState('card');
+        }
+
+        // Evento al enviar el formulario (clic en Buscar o tecla Enter)
+        searchForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            fetchPokemon(pokemonInput.value);
+        });
+
+        // Eventos para botones de búsqueda rápida
+        document.querySelectorAll('.quick-search').forEach(button => {
+            button.addEventListener('click', () => {
+                const pokemon = button.getAttribute('data-pokemon');
+                pokemonInput.value = pokemon;
+                fetchPokemon(pokemon);
+            });
+        });
+    </script>
+</body>
+</html>
